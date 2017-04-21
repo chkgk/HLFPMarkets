@@ -1,0 +1,1293 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Experiment</title>
+<link rel="stylesheet" type="text/css" href="main.css">
+<script src="jquery-2.1.0.min.js"></script>
+<script src="Chart.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="program.js"></script>
+<script type="text/javascript">
+
+var round = 0;
+var total_rounds = 40;
+var initial_endowment = 100000;
+
+var labels = new Array();
+var quantity_history = new Array();
+var demand_history = new Array();
+var cost_history = new Array();
+var ecost_history = new Array();
+var totalcost_history = new Array();
+
+for (var i = 1; i <= total_rounds; i++) {
+	labels.push(i);
+}
+
+var seat = document.location.hash.substr(1);
+if (seat == "") {
+	seat = 1;
+}
+
+socket = io.connect();
+
+$( document ).ready( function() {
+	socket.emit('register', {'type': 'client', 'seat': seat} );
+
+	socket.on('register', function(data) {
+	  if (data.response == 'accepted') {
+	    $("#status").html('Please wait for the experiment to start.');
+		//console.log("registered: "+data.sessionid);
+	  } else {
+	    $('#status').html('ERROR');
+		//console.log("rejected");
+	  }
+	});
+
+	socket.on('start', function (data) {
+		$('#status').hide();
+	$('#instructions').show();
+	});
+
+	update_chart([],[]);
+
+	$('form[name=confidenceForm]').on('submit', overconfidence);	
+	$('input[name=LotteryButton]').on('click', { choice: 'l' }, risk);
+	$('input[name=SureButton]').on('click', { choice: 's' }, risk);	
+	$('form[name=sersForm]').on('submit', sers);
+	$('form[name=demoForm]').on('submit', demograph);	
+	$('form[name=selfimageForm]').on('submit', selfimage);
+	$('form[name=psrsForm]').on('submit', psrs);
+
+	$('form[name=hexacoForm1]').on('submit', {page: 1}, hexaco);
+	$('form[name=hexacoForm2]').on('submit', {page: 2}, hexaco);
+	$('form[name=hexacoForm3]').on('submit', {page: 3}, hexaco);
+	$('form[name=hexacoForm4]').on('submit', {page: 4}, hexaco);
+
+	$('form[name=pssForm]').on('submit', pss);
+
+	$('form[name=probForm]').on('submit', prob);
+
+	$('form[name=distressForm]').on('submit', distress);
+	$('form[name=hatsForm]').on('submit', hats);
+	$('form[name=dictatorForm]').on('submit', dictator);
+
+	$('form[name=svoForm]').on('submit', svo2);
+
+	$('form[name=hasselsForm1]').on('submit', {page: 1}, hassels);
+	$('form[name=hasselsForm2]').on('submit', {page: 2}, hassels);
+
+});
+
+</script>
+</head>
+<body>
+<div class="centerbox">
+	<div id="status">
+		connecting...
+	</div>
+	<div class="boxcontent" id="instructions">
+		<h1>Welcome</h1>
+		<p>Dear participant,</p>
+		<p>Thank you very much for taking part in today’s study, which consists of two parts. In the first part you will complete a number of tasks and in the second part you will complete some questionnaires. You have to complete both parts in order to get your final payment. In the first part you earn points which will be exchanged for Euros at a rate of 10.000 points = 1€ at the end of the study. For the second part, you will receive a fixed payment of 6€. Thus, your final payoff will partially depend on your performance in today’s tasks.</p>
+		<p>Please note that this study is completely anonymous. Neither the experimenters nor the other participants can find out what you did in the task or what you replied in the questionnaires before, during or after the experiment. Under these strict anonymous conditions, we kindly ask you to respond truthfully to all the questions that will follow. We thank you in advance for your sincerity and for contributing to our study.</p>
+		<p>Please do not communicate with the other participants in the room. If you do, you will have to leave the experiment and forgo your entire payment. </p>
+		<p>If, at any time, you have a question, please raise your hand. One of the experimenters will come to you and answer your question. The study can now begin.</p>
+		<p class="center"><input type="button" value="continue" name="instrButton" onclick="instr();"></p>
+	
+	</div>
+	<div class="boxcontent" id="instructionsTask">
+		<h1>Instructions Part I</h1>
+		<p>You are now in charge of managing a warehouse, which stocks a single type of perishable, life-saving medicine for emergency situations. At the beginning of every month, you decide how many doses of the life-saving medicine you want to order for the current month. The medicine doses are immediately delivered to your warehouse upon ordering, but expire within one month. Thus, every month you start out with an empty warehouse, because the expired medicine can no longer be given to patients. You cannot order more often than once a month.</p>
+		<p>In each month, there is an uncertain demand for the life-saving medicine you stock and this demand varies between 0 and 100 medicine doses. Demanded medicine doses are automatically taken out of your warehouse at the end of each month. If you have too many medicine doses, you will give away only what has been ordered (the demand) and the remaining medicine doses will expire and be removed from your inventory. If you have too little medicine doses in stock, i.e. the patients' needs are higher than your inventory; an emergency delivery is automatically initiated to cover the missing medicine doses. Demand is always met in full, no matter how much you have in stock. 
+Buying and storing medicine doses in your warehouse has costs. Every medicine dose ordered and stored in the warehouse costs 10 points, while emergency deliveries are more expensive and cost 40 points per medicine dose. There is no refund for perished medicine.
+</p>
+		<p>You are in charge of managing the warehouse for a total of 40 months. Thus, for the 40 months you will take 40 decisions on how many medicine doses you want to order. You will start managing the warehouse with an initial budget of 100.000 points (the equivalent of 10€).  All costs you incur for storing medicine doses in your warehouse or covering the cost of emergency deliveries will be deducted from this initial endowment. At the end of today’s study, your remaining points will be exchanged for Euros at a fixed rate of 10.000 points = 1€.</p>
+
+		<p><em>Example:<br>
+		Assume that over the course of the 40 months, your decisions lead to total costs of 40.000 points. Starting out with an initial budget of 100.000 points leaves you with 60.000 points remaining after deducting total costs of all months. These 60.000 points are then exchanged at a rate of 10.0000 = 1€ for a final payoff for part I of 6€.</em></p>
+
+		<p>During the course of the 40 months, you always have access to the demand realizations as well as total costs of all previous rounds in the form of a history list as well as a corresponding graph.</p>
+
+		<p class="center"><input type="button" value="continue" name="instr2Button" onclick="instr2();"></p>
+	
+	</div>
+	<div class="boxcontent" id="treatment">
+		<div class="twocol fleft" id="leftcontent">
+				<h1>Part I</h1>
+				<div class="center" id="interaction">
+					<p id="round">Month: <span id="cr">1</span></p>
+					<label for="quantity">Doses to order: <input type="number" name="quantity" min="0" onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.keyCode == 8 || event.keyCode == 13 " onkeyup="if (event.keyCode == 13) document.getElementById('order').click()" autocomplete="off" required> </label>
+					<input type="button" id="order" name="order" value="order" onclick="order()">
+					<p id="status"></p>
+				</div>
+			</div>
+			<div class="twocol fright" id="rightcontent">
+				<h1>History</h1>
+				<table cellspacing="0" cellpadding="0" border="0" width="100%" id="tablehistory">
+					<tr>
+						<th>#</th>
+						<th>Inventory</th>
+						<th>Demand</th>
+						<th>Cost</th>
+					</tr>
+				</table>
+			</div>
+			<div class="onecol" id="graphs">
+				<h1>Graph</h1>
+				<canvas id="canvas" height="200" width="800"></canvas>
+				<p style="text-align: center; font-size: small;">months on x-axis, quantities on y-axis, <span style="color: #cd2015">demand in red</span>, <span style="color: #0886be">inventory in blue</span></p>
+			</div>
+	</div>
+	<div class="boxcontent" id="overconfidence">
+		<h1>Part I</h1>
+		<p>Now in the lab, there should be about 20 other participants who are about to finish the same task as you just have. <br> From 1 to 20, on which place do you think you would end up, if we did a final ranking?</p>
+		<p class="center"><form name='confidenceForm'><input type="number" min="1" max="20" step="1" name="overconfidence" autocomplete="off"  required></p>
+		<p align='center'><input type='submit' value='continue'></form></p>
+	</div>
+	<div class="boxcontent" id="feedback">
+		<h1>Part I</h1>
+		<p>Your total costs in the warehouse task were <span id='totalsum'>X</span> points (averaging <span id='totalavg'>Y</span> points per period).</p>
+		<p>Thus your total payoff for part I is <span id='payoffeur'>ZZ</span>€ (<span id='payoffpoints'>Z</span> points).<br>
+			Your payoff will be rounded up to the next 0.20€ step at the end of the session.</p>
+		<p>This concludes part I of the experiment. For the second part starting now, you will get a fixed payment.
+		<p align='center'><input type="button" value="continue" name="feedback" onclick="feedback();"></form></p>
+	</div>
+	<div class="boxcontent" id="risktask">
+			<div id="instrRisk">
+				<h1>Part II</h1>
+				<p>You are now presented with a number of choices. Each time you are asked to whether you would rather play a lottery with known probabilities for all outcomes or take a fixed amount of money.</p>
+				<p>&nbsp;</p>
+			</div>
+
+			<div id="riskQuestion">
+				<div class="choiceRisk" id="risk1">
+					<p>Choice <span id="rQNumber">1</span></p>
+					<p>Would you rather...</p>
+					<table border="0" cellspacing="1" cellpadding="1" class="risktable">
+						<tr>
+							<td width="250px"><b>...play a lottery with</b></td>
+							<td width="100px"></td>
+							<td width="250px"><b>...take</b></td>
+						</tr>
+						<tr>
+							<td>50% chance of winning 0€,<br>50% chance of winning 100€</td>
+							<td>or</td>
+							<td><span id='rSureAmount'>50</span>€ for sure</td>
+						</tr>
+						<tr>
+							<td><span class='hidden' id='rNumber'>1</span></td>
+							<td>&nbsp;</td>
+							<td>&nbsp;</td>
+						</tr>
+						<tr>
+							<td><input type="button" value="play lottery" name="LotteryButton"></td>
+							<td>&nbsp;</td>
+							<td><input type="button" value="take sure amount" name="SureButton"></td>
+						</tr>
+					</table>
+				</div>
+			</div>
+		</div>
+	<div class="boxcontent" id="SERS">
+		<h1>Part I</h1>
+		<p>Each of the following words describes feelings or mood. Please use the rating scale next to each word to describe your feelings at this moment.</p>
+		<form name="sersForm">
+			<table border="0" cellspacing="1" cellpadding="1" class="qTable" autocomplete="off">
+				<tr>
+					<td class="qItem"> </td>
+					<td class="qChoice">not at all</td>
+					<td class="qChoice">somewhat</td>
+					<td class="qChoice">moderately</td>
+					<td class="qChoice">very much so</td>
+				</tr>
+				<tr>
+					<td class="qItem">Calm</td>
+					<td class="qChoice"><input type="radio" name="sers1" value="1" required></td>
+					<td class="qChoice"><input type="radio" name="sers1" value="2"></td>
+					<td class="qChoice"><input type="radio" name="sers1" value="3"></td>
+					<td class="qChoice"><input type="radio" name="sers1" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Guilty</td>
+					<td class="qChoice"><input type="radio" name="sers2" value="1" required></td>
+					<td class="qChoice"><input type="radio" name="sers2" value="2"></td>
+					<td class="qChoice"><input type="radio" name="sers2" value="3"></td>
+					<td class="qChoice"><input type="radio" name="sers2" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Jittery</td>
+					<td class="qChoice"><input type="radio" name="sers3" value="1" required></td>
+					<td class="qChoice"><input type="radio" name="sers3" value="2"></td>
+					<td class="qChoice"><input type="radio" name="sers3" value="3"></td>
+					<td class="qChoice"><input type="radio" name="sers3" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Tense</td>
+					<td class="qChoice"><input type="radio" name="sers4" value="1" required></td>
+					<td class="qChoice"><input type="radio" name="sers4" value="2"></td>
+					<td class="qChoice"><input type="radio" name="sers4" value="3"></td>
+					<td class="qChoice"><input type="radio" name="sers4" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Fearful</td>
+					<td class="qChoice"><input type="radio" name="sers5" value="1" required></td>
+					<td class="qChoice"><input type="radio" name="sers5" value="2"></td>
+					<td class="qChoice"><input type="radio" name="sers5" value="3"></td>
+					<td class="qChoice"><input type="radio" name="sers5" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Ashamed</td>
+					<td class="qChoice"><input type="radio" name="sers6" value="1" required></td>
+					<td class="qChoice"><input type="radio" name="sers6" value="2"></td>
+					<td class="qChoice"><input type="radio" name="sers6" value="3"></td>
+					<td class="qChoice"><input type="radio" name="sers6" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Upset</td>
+					<td class="qChoice"><input type="radio" name="sers7" value="1" required></td>
+					<td class="qChoice"><input type="radio" name="sers7" value="2"></td>
+					<td class="qChoice"><input type="radio" name="sers7" value="3"></td>
+					<td class="qChoice"><input type="radio" name="sers7" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Intense</td>
+					<td class="qChoice"><input type="radio" name="sers8" value="1" required></td>
+					<td class="qChoice"><input type="radio" name="sers8" value="2"></td>
+					<td class="qChoice"><input type="radio" name="sers8" value="3"></td>
+					<td class="qChoice"><input type="radio" name="sers8" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Blameworthy</td>
+					<td class="qChoice"><input type="radio" name="sers9" value="1" required></td>
+					<td class="qChoice"><input type="radio" name="sers9" value="2"></td>
+					<td class="qChoice"><input type="radio" name="sers9" value="3"></td>
+					<td class="qChoice"><input type="radio" name="sers9" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Relaxed</td>
+					<td class="qChoice"><input type="radio" name="sers10" value="1" required></td>
+					<td class="qChoice"><input type="radio" name="sers10" value="2"></td>
+					<td class="qChoice"><input type="radio" name="sers10" value="3"></td>
+					<td class="qChoice"><input type="radio" name="sers10" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Worried</td>
+					<td class="qChoice"><input type="radio" name="sers11" value="1" required></td>
+					<td class="qChoice"><input type="radio" name="sers11" value="2"></td>
+					<td class="qChoice"><input type="radio" name="sers11" value="3"></td>
+					<td class="qChoice"><input type="radio" name="sers11" value="4"></td>
+				</tr>
+
+				<tr>
+					<td class="qItem">Angry at self</td>
+					<td class="qChoice"><input type="radio" name="sers12" value="1" required></td>
+					<td class="qChoice"><input type="radio" name="sers12" value="2"></td>
+					<td class="qChoice"><input type="radio" name="sers12" value="3"></td>
+					<td class="qChoice"><input type="radio" name="sers12" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Content</td>
+					<td class="qChoice"><input type="radio" name="sers13" value="1" required></td>
+					<td class="qChoice"><input type="radio" name="sers13" value="2"></td>
+					<td class="qChoice"><input type="radio" name="sers13" value="3"></td>
+					<td class="qChoice"><input type="radio" name="sers13" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Dissatisfied with self</td>
+					<td class="qChoice"><input type="radio" name="sers14" value="1" required></td>
+					<td class="qChoice"><input type="radio" name="sers14" value="2"></td>
+					<td class="qChoice"><input type="radio" name="sers14" value="3"></td>
+					<td class="qChoice"><input type="radio" name="sers14" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Clutched-up</td>
+					<td class="qChoice"><input type="radio" name="sers15" value="1" required></td>
+					<td class="qChoice"><input type="radio" name="sers15" value="2"></td>
+					<td class="qChoice"><input type="radio" name="sers15" value="3"></td>
+					<td class="qChoice"><input type="radio" name="sers15" value="4"></td>
+				</tr>
+			</table>
+			<p>&nbsp;</p>
+			<p class="center"><input type="submit" value="continue" name="sersButton"></p>
+		</form>
+	</div>
+	<div class="boxcontent" id="demographics">
+		<h1>Part II</h1>
+		
+		<form name="demoForm" autocomplete="off" id="dForm">
+			<p>How old are you?<br>
+				<input type="number" min="0" max="110" step="1" name="age" placeholder="years" required >
+			</p>
+			<p>Your gender<br>
+				<input type="radio" name="female" value="0" required> Male
+				<input type="radio" name="female" value="1"> Female
+			</p>
+			<p>What field do you study?<br>
+				<input type="text" name="fieldofstudy" size="64" maxlength="64" required>
+			</p>	
+			<p>Since when have you been a student?<br>
+				<input type="number" min="1900" max="2014" step="1" name="studentsince" placeholder="year"required>
+			</p>	
+			<p>We now have a question regarding your income: this refers to money you gain from employment, grants, scholarships, contributions from family or friends.<br>
+				<table width="60%" cellspacing="0" cellpadding="0">
+					<tr>
+						<td width="50%">
+							<input type="radio" name="incomeGroup" value="1" required> less than 500€/month<br>
+							<input type="radio" name="incomeGroup" value="3"> 1500-2500€/month<br>
+							<input type="radio" name="incomeGroup" value="5"> 3500-4500€/month<br>
+							<input type="radio" name="incomeGroup" value="7"> more than 5500€/month
+						</td>
+						<td>
+							<input type="radio" name="incomeGroup" value="2"> 500-1500€/month<br>
+							<input type="radio" name="incomeGroup" value="4"> 2500-3500€/month<br>
+							<input type="radio" name="incomeGroup" value="6"> 4500-5500€/month<br>&nbsp;
+						</td>
+					</tr>
+				</table>
+			</p>
+			<p>Do you smoke more than 5 cigarettes per day?<br>
+				<input type="radio" name="smoke" value="1" required> Yes
+				<input type="radio" name="smoke" value="0"> No
+			</p>
+			<p>Are you currently under medication treatment for depression, anxiety, or other psychiatric conditions?<br>
+				<input type="radio" name="psychTreatment" value="1" required> Yes
+				<input type="radio" name="psychTreatment" value="0"> No
+			</p>
+			<p>Is English your mother tongue?<br>
+				<input type="radio" name="nativeEnglish" value="1" required> Yes
+				<input type="radio" name="nativeEnglish" value="0"> No
+			</p>
+			<p>On a scale from 0 to 5, how good is your knowledge of English (0 means "extremely poor", 5 means "proficient")?<br>
+				<input type="radio" name="levelEnglish" value="1" required> 1
+				<input type="radio" name="levelEnglish" value="2"> 2
+				<input type="radio" name="levelEnglish" value="3"> 3
+				<input type="radio" name="levelEnglish" value="4"> 4
+				<input type="radio" name="levelEnglish" value="5"> 5
+			</p>
+			<p>What strategy did you use in the task you just completed (how did you decide what quantity to order)?<br>
+					<textarea name="strategy" cols="80" rows="3" placeholder="please explain your strategy" required></textarea>
+				</p>
+			<p>&nbsp;</p>
+			<p class="center"><input type="submit" value="continue"></p>
+		</form>
+	</div>
+	<div class="boxcontent" id="selfimage">
+		<h1>Part II</h1>
+		
+		<form name="selfimageForm" autocomplete="off" id="dForm">
+			<p>How do you see yourself: Are you in general a person who takes risk or do you try to evade risks? Please self ‐ grade your choice between 0 and 10 on the scale below. The grades run from 0: “not at all prepared to take risk” to 10: “very much prepared to take risk”.</p>
+			<p class="center">
+				<input type="radio" name="riskAttitudeGeneral" value="1" required> 1
+				<input type="radio" name="riskAttitudeGeneral" value="2"> 2
+				<input type="radio" name="riskAttitudeGeneral" value="3"> 3
+				<input type="radio" name="riskAttitudeGeneral" value="4"> 4
+				<input type="radio" name="riskAttitudeGeneral" value="5"> 5
+				<input type="radio" name="riskAttitudeGeneral" value="6"> 6
+				<input type="radio" name="riskAttitudeGeneral" value="7"> 7
+				<input type="radio" name="riskAttitudeGeneral" value="8"> 8
+				<input type="radio" name="riskAttitudeGeneral" value="9"> 9
+				<input type="radio" name="riskAttitudeGeneral" value="10"> 10
+			</p>
+			<p>How do you see yourself: Are you a person who takes risk in what concerns your financial situations or do you try to evade risks? Please self ‐ grade your choice between 0 and 10 on the scale below. The grades run from 0: “not at all prepared to take risk” to 10: “very much prepared to take risk”.</p>
+			<p class="center">	
+				<input type="radio" name="riskAttitudeFinancial" value="1" required> 1
+				<input type="radio" name="riskAttitudeFinancial" value="2"> 2
+				<input type="radio" name="riskAttitudeFinancial" value="3"> 3
+				<input type="radio" name="riskAttitudeFinancial" value="4"> 4
+				<input type="radio" name="riskAttitudeFinancial" value="5"> 5
+				<input type="radio" name="riskAttitudeFinancial" value="6"> 6
+				<input type="radio" name="riskAttitudeFinancial" value="7"> 7
+				<input type="radio" name="riskAttitudeFinancial" value="8"> 8
+				<input type="radio" name="riskAttitudeFinancial" value="9"> 9
+				<input type="radio" name="riskAttitudeFinancial" value="10"> 10
+			</p>
+			<p>How do you see yourself: Are you a person who takes risk in your leisure activities or do you try to evade risks? Please self ‐ grade your choice between 0 and 10 on the scale below. The grades run from 0: “not at all prepared to take risk” to 10: “very much prepared to take risk”.</p>
+			<p class="center">
+				<input type="radio" name="riskAttitudeLeisure" value="1" required> 1
+				<input type="radio" name="riskAttitudeLeisure" value="2"> 2
+				<input type="radio" name="riskAttitudeLeisure" value="3"> 3
+				<input type="radio" name="riskAttitudeLeisure" value="4"> 4
+				<input type="radio" name="riskAttitudeLeisure" value="5"> 5
+				<input type="radio" name="riskAttitudeLeisure" value="6"> 6
+				<input type="radio" name="riskAttitudeLeisure" value="7"> 7
+				<input type="radio" name="riskAttitudeLeisure" value="8"> 8
+				<input type="radio" name="riskAttitudeLeisure" value="9"> 9
+				<input type="radio" name="riskAttitudeLeisure" value="10"> 10
+			</p>
+			<p>How do you see yourself: Are you a person who takes risk in your education or do you try to evade risks? Please self ‐ grade your choice between 0 and 10 on the scale below. The grades run from 0: “not at all prepared to take risk” to 10: “very much prepared to take risk”.</p>
+			<p class="center">
+				<input type="radio" name="riskAttitudeEducation" value="1" required> 1
+				<input type="radio" name="riskAttitudeEducation" value="2"> 2
+				<input type="radio" name="riskAttitudeEducation" value="3"> 3
+				<input type="radio" name="riskAttitudeEducation" value="4"> 4
+				<input type="radio" name="riskAttitudeEducation" value="5"> 5
+				<input type="radio" name="riskAttitudeEducation" value="6"> 6
+				<input type="radio" name="riskAttitudeEducation" value="7"> 7
+				<input type="radio" name="riskAttitudeEducation" value="8"> 8
+				<input type="radio" name="riskAttitudeEducation" value="9"> 9
+				<input type="radio" name="riskAttitudeEducation" value="10"> 10
+			</p>
+			<p>How do you see yourself: Are you a person who takes risk in your career or do you try to evade risks? Please self ‐ grade your choice between 0 and 10 on the scale below. The grades run from 0: “not at all prepared to take risk” to 10: “very much prepared to take risk”.</p>
+			<p class="center">
+				<input type="radio" name="riskAttitudeCareer" value="1" required> 1
+				<input type="radio" name="riskAttitudeCareer" value="2"> 2
+				<input type="radio" name="riskAttitudeCareer" value="3"> 3
+				<input type="radio" name="riskAttitudeCareer" value="4"> 4
+				<input type="radio" name="riskAttitudeCareer" value="5"> 5
+				<input type="radio" name="riskAttitudeCareer" value="6"> 6
+				<input type="radio" name="riskAttitudeCareer" value="7"> 7
+				<input type="radio" name="riskAttitudeCareer" value="8"> 8
+				<input type="radio" name="riskAttitudeCareer" value="9"> 9
+				<input type="radio" name="riskAttitudeCareer" value="10"> 10
+			</p>
+			<p>How do you see yourself: Are you a person who takes risk in your health or do you try to evade risks? Please self ‐ grade your choice between 0 and 10 on the scale below. The grades run from 0: “not at all prepared to take risk” to 10: “very much prepared to take risk”.</p>
+			<p class="center">
+				<input type="radio" name="riskAttitudeHealth" value="1" required> 1
+				<input type="radio" name="riskAttitudeHealth" value="2"> 2
+				<input type="radio" name="riskAttitudeHealth" value="3"> 3
+				<input type="radio" name="riskAttitudeHealth" value="4"> 4
+				<input type="radio" name="riskAttitudeHealth" value="5"> 5
+				<input type="radio" name="riskAttitudeHealth" value="6"> 6
+				<input type="radio" name="riskAttitudeHealth" value="7"> 7
+				<input type="radio" name="riskAttitudeHealth" value="8"> 8
+				<input type="radio" name="riskAttitudeHealth" value="9"> 9
+				<input type="radio" name="riskAttitudeHealth" value="10"> 10
+			</p>
+			<p>&nbsp;</p>
+			<p class="center"><input type="submit" value="continue"></p>
+		</form>
+	</div>
+	<div class="boxcontent" id="PSRS">
+		<h1>Part II</h1>
+		<p>
+			This short test asks for your <b>typical reactions</b> to situations, which you have probably  encountered before. For each question, three answers are suggested. Please mark the reaction, which you recognize from yourself. If you are unsure please choose the answer, which fits you best. 
+		</p>
+		
+		<form name="psrsForm" autocomplete="off" id="psrsForm">
+			<p>
+				If I had an argument with other people,<br>
+				<input type="radio" name="psrs1" required value="0"> I usually calm down quickly.<br>
+				<input type="radio" name="psrs1" value="1"> I am usually upset for quite some time.<br>
+				<input type="radio" name="psrs1" value="2"> it usually takes very long until I have calmed down.
+			</p>
+			<p>
+				If I am criticized by others,<br>
+				<input type="radio" name="psrs2" required value="0"> it generally does not unsettle me.<br>
+				<input type="radio" name="psrs2" value="1"> it generally unsettles me only slightly.<br>
+				<input type="radio" name="psrs2" value="2"> it generally unsettles me considerably.
+			</p>
+			<p>
+				If I have done a bad job,<br>
+				<input type="radio" name="psrs3" required value="0"> I usually feel very uncomfortable.<br>
+				<input type="radio" name="psrs3" value="1"> I usually feel quite uncomfortable.<br>
+				<input type="radio" name="psrs3" value="2"> it generally does not bother me.
+			</p>
+			<p>
+				If I am under stress,<br>
+				<input type="radio" name="psrs4" required value="0"> I usually cannot enjoy my remaining leisure time at all.<br>
+				<input type="radio" name="psrs4" value="1"> I usually cannot really enjoy my remaining leisure time.<br>
+				<input type="radio" name="psrs4" value="2"> I usually can still enjoy my remaining leisure time.
+			</p>
+			<p>
+				If I have to fulfill a lot of obligations/tasks, <br>
+				<input type="radio" name="psrs5" required value="0"> I usually stay relaxed.<br>
+				<input type="radio" name="psrs5" value="1"> I usually become quite impatient.<br>
+				<input type="radio" name="psrs5" value="2"> I often become really hectic.
+			</p>
+			<p>&nbsp;</p>
+			<p class="center"><input type="submit" value="continue"></p>
+		</form>
+	</div>
+
+	<div class="boxcontent" id="HASSELS1">
+		<h1>Part II</h1>
+		<p>Following is a list of experiences which many people have some time or other. Please indicate for each experience how much it has been a part of your life over the past month.<br>Put a "1" in the space provided next to an experience if it was not at all part of your life
+over the past month (e.g., "trouble with mother in law - 1"); "2" for an experience which
+was only slightly part of your life over that time; "3" for an experience which was distinctly
+part of your life; and "4" for an experience which was very much part of your life over the
+past month.	</p>
+<p>Intensity of Experience over Past Month<br>
+1 = not at all part of my life<br>
+2 = only slight part of my life<br>
+3 = distinctly part of my life<br>
+4 = very much part of my life
+</p>
+		<p><em>You can use </em>[ &#8677; ]<em> (tab key) to switch from item to item quickly and the keyboad to enter the numbers.</em></p>
+		
+		<form name="hasselsForm1" autocomplete="off" id="hasselsForm1">
+			<div class="shortNum">
+				<p>1. <input type="number" min="1" max="4" step="1" name="hassels1" required > Disliking your daily activities</p>
+				<p>2. <input type="number" min="1" max="4" step="1" name="hassels2" required> Disliking your work</p>
+				<p>3. <input type="number" min="1" max="4" step="1" name="hassels3" required> Ethnic or racial conflict</p>
+				<p>4. <input type="number" min="1" max="4" step="1" name="hassels4" required> Conflicts with in-laws or boyfriend's/girlfriend's family</p>
+				<p>5. <input type="number" min="1" max="4" step="1" name="hassels5" required> Being let down or disappointed by friends</p>
+				<p>6. <input type="number" min="1" max="4" step="1" name="hassels6" required> Conflict with supervisor(s) at work</p>
+				<p>7. <input type="number" min="1" max="4" step="1" name="hassels7" required> Social rejection</p>
+				<p>8. <input type="number" min="1" max="4" step="1" name="hassels8" required> Too many things to do at once</p>
+				<p>9. <input type="number" min="1" max="4" step="1" name="hassels9" required> Being taken for granted</p>
+				<p>10. <input type="number" min="1" max="4" step="1" name="hassels10" required> Financial conflicts with family members</p>
+				<p>11. <input type="number" min="1" max="4" step="1" name="hassels11" required> Having your trust betrayed by a friend</p>
+				<p>12. <input type="number" min="1" max="4" step="1" name="hassels12" required> Having your contributions overlooked</p>
+				<p>13. <input type="number" min="1" max="4" step="1" name="hassels13" required> Struggling to meet your own standards of performance and accomplishment</p>
+				<p>14. <input type="number" min="1" max="4" step="1" name="hassels14" required> Being taken advantage of</p>
+				<p>15. <input type="number" min="1" max="4" step="1" name="hassels15" required> Not enough leisure time</p>
+				<p>16. <input type="number" min="1" max="4" step="1" name="hassels16" required> Cash-flow difficulties</p>
+				<p>17. <input type="number" min="1" max="4" step="1" name="hassels17" required> A lot of responsibilities</p>
+				<p>18. <input type="number" min="1" max="4" step="1" name="hassels18" required> Dissatisfaction with work</p>
+				<p>19. <input type="number" min="1" max="4" step="1" name="hassels19" required> Decisions about intimate relationship(s)</p>
+				<p>20. <input type="number" min="1" max="4" step="1" name="hassels20" required> Not enough time to meet your obligations</p>
+			</div>
+			<p class="center"><input type="submit" value="continue"></p>
+		</form>
+	</div>
+
+	<div class="boxcontent" id="HASSELS2">
+		<h1>Part II</h1>
+<p>Intensity of Experience over Past Month<br>
+1 = not at all part of my life<br>
+2 = only slight part of my life<br>
+3 = distinctly part of my life<br>
+4 = very much part of my life
+</p>
+		<p><em>You can use </em>[ &#8677; ]<em> (tab key) to switch from item to item quickly and the keyboad to enter the numbers.</em></p>
+		
+		<form name="hasselsForm2" autocomplete="off" id="hasselsForm2">
+			<div class="shortNum">
+				<p>21. <input type="number" min="1" max="4" step="1" name="hassels21" required > Financial burdens</p>
+				<p>22. <input type="number" min="1" max="4" step="1" name="hassels22" required> Lower evaluation of your work than you think you deserve</p>
+				<p>23. <input type="number" min="1" max="4" step="1" name="hassels23" required> Experiencing high levels of noise</p>
+				<p>24. <input type="number" min="1" max="4" step="1" name="hassels24" required> Lower evaluation of your work than you hoped for</p>
+				<p>25. <input type="number" min="1" max="4" step="1" name="hassels25" required> Conflicts with family member(s)</p>
+				<p>26. <input type="number" min="1" max="4" step="1" name="hassels26" required> Finding your work too demanding</p>
+				<p>27. <input type="number" min="1" max="4" step="1" name="hassels27" required> Conflicts with friend(s)</p>
+				<p>28. <input type="number" min="1" max="4" step="1" name="hassels28" required> Trying to secure loan(s)</p>
+				<p>29. <input type="number" min="1" max="4" step="1" name="hassels29" required> Getting "ripped off" or cheated in the purchase of goods</p>
+				<p>30. <input type="number" min="1" max="4" step="1" name="hassels30" required> Unwanted interruptions of your work</p>
+				<p>31. <input type="number" min="1" max="4" step="1" name="hassels31" required> Social isolation</p>
+				<p>32. <input type="number" min="1" max="4" step="1" name="hassels32" required> Being ignored</p>
+				<p>33. <input type="number" min="1" max="4" step="1" name="hassels33" required> Dissatisfaction with your physical appearance</p>
+				<p>34. <input type="number" min="1" max="4" step="1" name="hassels34" required> Unsatisfactory housing conditions</p>
+				<p>35. <input type="number" min="1" max="4" step="1" name="hassels35" required> Finding work uninteresting</p>
+				<p>36. <input type="number" min="1" max="4" step="1" name="hassels36" required> Failing to get money you expected</p>
+				<p>37. <input type="number" min="1" max="4" step="1" name="hassels37" required> Gossip about someone you care about</p>
+				<p>38. <input type="number" min="1" max="4" step="1" name="hassels38" required> Dissatisfaction with your physical fitness</p>
+				<p>39. <input type="number" min="1" max="4" step="1" name="hassels39" required> Gossip about yourself</p>
+				<p>40. <input type="number" min="1" max="4" step="1" name="hassels40" required> Difficulty dealing with modern technology (e.g., computers)</p>
+				<p>41. <input type="number" min="1" max="4" step="1" name="hassels41" required> Hard work to look after and maintain home</p>
+			</div>
+			<p class="center"><input type="submit" value="continue"></p>
+		</form>
+	</div>
+
+
+	<div class="boxcontent" id="HEXACO1">
+		<h1>Part II</h1>
+		<p>Finally, on the following pages you will find a series of statements about you.  Please read each statement and decide how much you agree or disagree with that statement.  Then write your response in the space next to the statement using the following scale:</p>
+<p>5 = strongly agree<br>
+4 = agree <br>
+3 = neutral (neither agree nor disagree)<br>
+2 = disagree<br>
+1 = strongly disagree
+		</p>
+		<p><em>You can use </em>[ &#8677; ]<em> (tab key) to switch from item to item quickly and the keyboad to enter the numbers.</em></p>
+		
+		<form name="hexacoForm1" autocomplete="off" id="hexacoForm1">
+			<div class="shortNum">
+				<p>1. <input type="number" min="1" max="5" step="1" name="hexaco1" required > I would be quite bored by a visit to an art gallery.</p>
+				<p>2. <input type="number" min="1" max="5" step="1" name="hexaco2" required> I clean my office or home quite frequently.</p>
+				<p>3. <input type="number" min="1" max="5" step="1" name="hexaco3" required> I rarely hold a grudge, even against people who have badly wronged me.</p>
+				<p>4. <input type="number" min="1" max="5" step="1" name="hexaco4" required> I feel reasonably satisfied with myself overall.</p>
+				<p>5. <input type="number" min="1" max="5" step="1" name="hexaco5" required> I would feel afraid if I had to travel in bad weather conditions.</p>
+				<p>6. <input type="number" min="1" max="5" step="1" name="hexaco6" required> If I want something from a person I dislike, I will act very nicely toward that person in order to get it.</p>
+				<p>7. <input type="number" min="1" max="5" step="1" name="hexaco7" required> I'm interested in learning about the history and politics of other countries.</p>
+				<p>8. <input type="number" min="1" max="5" step="1" name="hexaco8" required> When working, I often set ambitious goals for myself.</p>
+				<p>9. <input type="number" min="1" max="5" step="1" name="hexaco9" required> People sometimes tell me that I am too critical of others.</p>
+				<p>10. <input type="number" min="1" max="5" step="1" name="hexaco10" required> I rarely express my opinions in group meetings.</p>
+				<p>11. <input type="number" min="1" max="5" step="1" name="hexaco11" required> I sometimes can't help worrying about little things.</p>
+				<p>12. <input type="number" min="1" max="5" step="1" name="hexaco12" required> If I knew that I could never get caught, I would be willing to steal a million dollars.</p>
+				<p>13. <input type="number" min="1" max="5" step="1" name="hexaco13" required> I would like a job that requires following a routine rather than being creative. </p>
+				<p>14. <input type="number" min="1" max="5" step="1" name="hexaco14" required> I often check my work over repeatedly to find any mistakes.</p>
+				<p>15. <input type="number" min="1" max="5" step="1" name="hexaco15" required> People sometimes tell me that I'm too stubborn.</p>
+				<p>16. <input type="number" min="1" max="5" step="1" name="hexaco16" required> I avoid making "small talk" with people.</p>
+				<p>17. <input type="number" min="1" max="5" step="1" name="hexaco17" required> When I suffer from a painful experience, I need someone to make me feel comfortable.</p>
+				<p>18. <input type="number" min="1" max="5" step="1" name="hexaco18" required> Having a lot of money is not especially important to me.</p>
+				<p>19. <input type="number" min="1" max="5" step="1" name="hexaco19" required> I think that paying attention to radical ideas is a waste of time.</p>
+				<p>20. <input type="number" min="1" max="5" step="1" name="hexaco20" required> I make decisions based on the feeling of the moment rather than on careful thought.</p>
+				<p>21. <input type="number" min="1" max="5" step="1" name="hexaco21" required> People think of me as someone who has a quick temper.</p>
+				<p>22. <input type="number" min="1" max="5" step="1" name="hexaco22" required> I am energetic nearly all the time.</p>
+				<p>23. <input type="number" min="1" max="5" step="1" name="hexaco23" required> I feel like crying when I see other people crying.</p>
+				<p>24. <input type="number" min="1" max="5" step="1" name="hexaco24" required> I am an ordinary person who is no better than others.</p>
+				<p>25. <input type="number" min="1" max="5" step="1" name="hexaco25" required> I wouldn't spend my time reading a book of poetry.</p>
+			</div>
+			<p class="center"><input type="submit" value="continue"></p>
+		</form>
+	</div>
+	<div class="boxcontent" id="HEXACO2">
+		<h1>Part II</h1>
+		<p>5 = strongly agree; 4 = agree; 3 = neutral (neither agree nor disagree); 2 = disagree; 1 = strongly disagree)</p>
+		<p><em>You can use </em>[ &#8677; ]<em> (tab key) to switch from item to item quickly and the keyboad to enter the numbers.</em></p>
+		
+		<form name="hexacoForm2" autocomplete="off" id="hexacoForm2">
+			<div class="shortNum">
+				<p>26. <input type="number" min="1" max="5" step="1" name="hexaco26" required > I plan ahead and organize things, to avoid scrambling at the last minute.</p>
+				<p>27. <input type="number" min="1" max="5" step="1" name="hexaco27" required> My attitude toward people who have treated me badly is "forgive and forget".</p>
+				<p>28. <input type="number" min="1" max="5" step="1" name="hexaco28" required> I think that most people like some aspects of my personality.</p>
+				<p>29. <input type="number" min="1" max="5" step="1" name="hexaco29" required> I don’t mind doing jobs that involve dangerous work.</p>
+				<p>30. <input type="number" min="1" max="5" step="1" name="hexaco30" required> I wouldn't use flattery to get a raise or promotion at work, even if I thought it would succeed.</p>
+				<p>31. <input type="number" min="1" max="5" step="1" name="hexaco31" required> I enjoy looking at maps of different places.</p>
+				<p>32. <input type="number" min="1" max="5" step="1" name="hexaco32" required> I often push myself very hard when trying to achieve a goal.</p>
+				<p>33. <input type="number" min="1" max="5" step="1" name="hexaco33" required> I generally accept people’s faults without complaining about them.</p>
+				<p>34. <input type="number" min="1" max="5" step="1" name="hexaco34" required> In social situations, I'm usually the one who makes the first move.</p>
+				<p>35. <input type="number" min="1" max="5" step="1" name="hexaco35" required> I worry a lot less than most people do.</p>
+				<p>36. <input type="number" min="1" max="5" step="1" name="hexaco36" required> I would be tempted to buy stolen property if I were financially tight.</p>
+				<p>37. <input type="number" min="1" max="5" step="1" name="hexaco37" required> I would enjoy creating a work of art, such as a novel, a song, or a painting.</p>
+				<p>38. <input type="number" min="1" max="5" step="1" name="hexaco38" required> When working on something, I don't pay much attention to small details.</p>
+				<p>39. <input type="number" min="1" max="5" step="1" name="hexaco39" required> I am usually quite flexible in my opinions when people disagree with me.</p>
+				<p>40. <input type="number" min="1" max="5" step="1" name="hexaco40" required> I enjoy having lots of people around to talk with.</p>
+				<p>41. <input type="number" min="1" max="5" step="1" name="hexaco41" required> I can handle difficult situations without needing emotional support from anyone else.</p>
+				<p>42. <input type="number" min="1" max="5" step="1" name="hexaco42" required> I would like to live in a very expensive, high-class neighborhood.</p>
+				<p>43. <input type="number" min="1" max="5" step="1" name="hexaco43" required> I like people who have unconventional views.</p>
+				<p>44. <input type="number" min="1" max="5" step="1" name="hexaco44" required> I make a lot of mistakes because I don't think before I act.</p>
+				<p>45. <input type="number" min="1" max="5" step="1" name="hexaco45" required> I rarely feel anger, even when people treat me quite badly.</p>
+				<p>46. <input type="number" min="1" max="5" step="1" name="hexaco46" required> On most days, I feel cheerful and optimistic.</p>
+				<p>47. <input type="number" min="1" max="5" step="1" name="hexaco47" required> When someone I know well is unhappy, I can almost feel that person's pain myself.</p>
+				<p>48. <input type="number" min="1" max="5" step="1" name="hexaco48" required> I wouldn’t want people to treat me as though I were superior to them.</p>
+				<p>49. <input type="number" min="1" max="5" step="1" name="hexaco49" required> If I had the opportunity, I would like to attend a classical music concert.</p>
+				<p>50. <input type="number" min="1" max="5" step="1" name="hexaco50" required> People often joke with me about the messiness of my room or desk.</p>
+			</div>
+			<p>&nbsp;</p>
+			<p class="center"><input type="submit" value="continue"></p>
+		</form>
+	</div>
+	<div class="boxcontent" id="HEXACO3">
+		<h1>Part II</h1>
+		<p>5 = strongly agree; 4 = agree; 3 = neutral (neither agree nor disagree); 2 = disagree; 1 = strongly disagree)</p>
+		<p><em>You can use </em>[ &#8677; ]<em> (tab key) to switch from item to item quickly and the keyboad to enter the numbers.</em></p>
+		
+		<form name="hexacoForm3" autocomplete="off" id="hexacoForm3">
+			<div class="shortNum">
+				<p>51. <input type="number" min="1" max="5" step="1" name="hexaco51"  required> If someone has cheated me once, I will always feel suspicious of that person.</p>
+				<p>52. <input type="number" min="1" max="5" step="1" name="hexaco52" required> I feel that I am an unpopular person.</p>
+				<p>53. <input type="number" min="1" max="5" step="1" name="hexaco53" required> When it comes to physical danger, I am very fearful.</p>
+				<p>54. <input type="number" min="1" max="5" step="1" name="hexaco54" required> If I want something from someone, I will laugh at that person's worst jokes.</p>
+				<p>55. <input type="number" min="1" max="5" step="1" name="hexaco55" required> I would be very bored by a book about the history of science and technology.</p>  
+				<p>56. <input type="number" min="1" max="5" step="1" name="hexaco56" required> Often when I set a goal, I end up quitting without having reached it.</p>
+				<p>57. <input type="number" min="1" max="5" step="1" name="hexaco57" required> I tend to be lenient in judging other people.</p>
+				<p>58. <input type="number" min="1" max="5" step="1" name="hexaco58" required> When I'm in a group of people, I'm often the one who speaks on behalf of the group.</p>
+				<p>59. <input type="number" min="1" max="5" step="1" name="hexaco59" required> I rarely, if ever, have trouble sleeping due to stress or anxiety.</p>
+				<p>60. <input type="number" min="1" max="5" step="1" name="hexaco60" required> I would never accept a bribe, even if it were very large.</p>
+				<p>61. <input type="number" min="1" max="5" step="1" name="hexaco61" required> People have often told me that I have a good imagination.</p>
+				<p>62. <input type="number" min="1" max="5" step="1" name="hexaco62" required> I always try to be accurate in my work, even at the expense of time.</p>
+				<p>63. <input type="number" min="1" max="5" step="1" name="hexaco63" required> When people tell me that I’m wrong, my first reaction is to argue with them.</p>
+				<p>64. <input type="number" min="1" max="5" step="1" name="hexaco64" required> I prefer jobs that involve active social interaction to those that involve working alone.</p>
+				<p>65. <input type="number" min="1" max="5" step="1" name="hexaco65" required> Whenever I feel worried about something, I want to share my concern with another person.</p>
+				<p>66. <input type="number" min="1" max="5" step="1" name="hexaco66" required> I would like to be seen driving around in a very expensive car.</p>
+				<p>67. <input type="number" min="1" max="5" step="1" name="hexaco67" required> I think of myself as a somewhat eccentric person.</p>
+				<p>68. <input type="number" min="1" max="5" step="1" name="hexaco68" required> I don’t allow my impulses to govern my behavior.</p>
+				<p>69. <input type="number" min="1" max="5" step="1" name="hexaco69" required> Most people tend to get angry more quickly than I do.</p>
+				<p>70. <input type="number" min="1" max="5" step="1" name="hexaco70" required> People often tell me that I should try to cheer up.</p>
+				<p>71. <input type="number" min="1" max="5" step="1" name="hexaco71" required> I feel strong emotions when someone close to me is going away for a long time.</p>
+				<p>72. <input type="number" min="1" max="5" step="1" name="hexaco72" required> I think that I am entitled to more respect than the average person is.</p>
+				<p>73. <input type="number" min="1" max="5" step="1" name="hexaco73" required> Sometimes I like to just watch the wind as it blows through the trees.</p>
+				<p>74. <input type="number" min="1" max="5" step="1" name="hexaco74" required> When working, I sometimes have difficulties due to being disorganized.</p>
+				<p>75. <input type="number" min="1" max="5" step="1" name="hexaco75" required> I find it hard to fully forgive someone who has done something mean to me.</p>
+			</div>
+			<p>&nbsp;</p>
+			<p class="center"><input type="submit" value="continue"></p>
+		</form>
+	</div>
+	<div class="boxcontent" id="HEXACO4">
+		<h1>Part II</h1>
+		<p>5 = strongly agree; 4 = agree; 3 = neutral (neither agree nor disagree); 2 = disagree; 1 = strongly disagree)</p>
+		<p><em>You can use </em>[ &#8677; ]<em> (tab key) to switch from item to item quickly and the keyboad to enter the numbers.</em></p>
+		
+		<form name="hexacoForm4" autocomplete="off" id="hexacoForm4">
+			<div class="shortNum">
+				<p>76. <input type="number" min="1" max="5" step="1" name="hexaco76"  required> I sometimes feel that I am a worthless person.</p>
+				<p>77. <input type="number" min="1" max="5" step="1" name="hexaco77" required> Even in an emergency I wouldn't feel like panicking.</p>
+				<p>78. <input type="number" min="1" max="5" step="1" name="hexaco78" required> I wouldn't pretend to like someone just to get that person to do favors for me.</p>
+				<p>79. <input type="number" min="1" max="5" step="1" name="hexaco79" required> I’ve never really enjoyed looking through an encyclopedia.</p>
+				<p>80. <input type="number" min="1" max="5" step="1" name="hexaco80" required> I do only the minimum amount of work needed to get by. </p>
+				<p>81. <input type="number" min="1" max="5" step="1" name="hexaco81" required> Even when people make a lot of mistakes, I rarely say anything negative.</p>
+				<p>82. <input type="number" min="1" max="5" step="1" name="hexaco82" required> I tend to feel quite self-conscious when speaking in front of a group of people.</p>
+				<p>83. <input type="number" min="1" max="5" step="1" name="hexaco83" required> I get very anxious when waiting to hear about an important decision.</p>
+				<p>84. <input type="number" min="1" max="5" step="1" name="hexaco84" required> I’d be tempted to use counterfeit money, if I were sure I could get away with it.</p>
+				<p>85. <input type="number" min="1" max="5" step="1" name="hexaco85" required> I don't think of myself as the artistic or creative type.</p>
+				<p>86. <input type="number" min="1" max="5" step="1" name="hexaco86" required> People often call me a perfectionist.</p>
+				<p>87. <input type="number" min="1" max="5" step="1" name="hexaco87" required> I find it hard to compromise with people when I really think I’m right.</p>
+				<p>88. <input type="number" min="1" max="5" step="1" name="hexaco88" required> The first thing that I always do in a new place is to make friends.</p>
+				<p>89. <input type="number" min="1" max="5" step="1" name="hexaco89" required> I rarely discuss my problems with other people.</p>
+				<p>90. <input type="number" min="1" max="5" step="1" name="hexaco90" required> I would get a lot of pleasure from owning expensive luxury goods.</p>
+				<p>91. <input type="number" min="1" max="5" step="1" name="hexaco91" required> I find it boring to discuss philosophy.</p>
+				<p>92. <input type="number" min="1" max="5" step="1" name="hexaco92" required> I prefer to do whatever comes to mind, rather than stick to a plan.</p>
+				<p>93. <input type="number" min="1" max="5" step="1" name="hexaco93" required> I find it hard to keep my temper when people insult me.</p>
+				<p>94. <input type="number" min="1" max="5" step="1" name="hexaco94" required> Most people are more upbeat and dynamic than I generally am.</p>
+				<p>95. <input type="number" min="1" max="5" step="1" name="hexaco95" required> I remain unemotional even in situations where most people get very sentimental.</p>
+				<p>96. <input type="number" min="1" max="5" step="1" name="hexaco96" required> I want people to know that I am an important person of high status.</p>
+				<p>97. <input type="number" min="1" max="5" step="1" name="hexaco97" required> I have sympathy for people who are less fortunate than I am.</p>
+				<p>98. <input type="number" min="1" max="5" step="1" name="hexaco98" required> I try to give generously to those in need.</p>
+				<p>99. <input type="number" min="1" max="5" step="1" name="hexaco99" required> It wouldn’t bother me to harm someone I didn’t like.</p>
+				<p>100. <input type="number" min="1" max="5" step="1" name="hexaco100" required> People see me as a hard-hearted person.</p>
+			</div>
+			<p>&nbsp;</p>
+			<p class="center"><input type="submit" value="continue"></p>
+		</form>
+	</div>
+	<div class="boxcontent" id="PSS">
+		<h1>Part II</h1>
+		<p class="smaller">The questions in this scale ask you about your feelings and thoughts during THE LAST MONTH. In each case, you will be asked to indicate your response by clicking the circle representing HOW OFTEN you felt or thought a certain way. Although some of the questions are similar, there are differences between them and you should treat each one as a separate question. The best approach is to answer fairly quickly. That is, don’t try to count up the number of times you felt a particular way, but rather indicate the alternative that seems like a reasonable estimate.</p>
+		
+		<form name="pssForm" autocomplete="off" id="pssForm">
+			<table border="0" cellspacing="1" cellpadding="1" class="qTable2" autocomplete="off">
+				<tr>
+					<td class="qItem"> </td>
+					<td class="qChoice qsmall">Never<br>0</td>
+					<td class="qChoice qsmall">Almost Never<br>1</td>
+					<td class="qChoice qsmall">Sometimes<br>2</td>
+					<td class="qChoice qsmall">Fairly Often<br>3</td>
+					<td class="qChoice qsmall">Very Often<br>4</td>
+				</tr>
+				<tr>
+					<td class="qItem"><p class="smaller">In the last month, how often have you been upset because of something that happened unexpectedly?</p></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss1" value="0" required></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss1" value="1"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss1" value="2"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss1" value="3"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss1" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem"><p class="smaller">In the last month, how often have you felt that you were unable to control the important things in your life?</p></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss2" value="0" required></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss2" value="1"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss2" value="2"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss2" value="3"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss2" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem"><p class="smaller">In the last month, how often have you felt nervous and “stressed”?</p></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss3" value="0" required></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss3" value="1"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss3" value="2"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss3" value="3"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss3" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem"><p class="smaller">In the last month, how often have you dealt successfully with day to day problems and annoyances?</p></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss4" value="0" required></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss4" value="1"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss4" value="2"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss4" value="3"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss4" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem"><p class="smaller">In the last month, how often have you felt that you were effectively coping with important changes that were occurring in your life?</p></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss5" value="0" required></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss5" value="1"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss5" value="2"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss5" value="3"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss5" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem"><p class="smaller">In the last month, how often have you felt confident about your ability to handle your personal problems?</p></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss6" value="0" required></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss6" value="1"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss6" value="2"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss6" value="3"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss6" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem"><p class="smaller">In the last month, how often have you felt that things were going your way?</p></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss7" value="0" required></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss7" value="1"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss7" value="2"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss7" value="3"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss7" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem"><p class="smaller">In the last month, how often have you found that you could not cope with all the things that you had to do?</p></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss8" value="0" required></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss8" value="1"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss8" value="2"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss8" value="3"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss8" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem"><p class="smaller">In the last month, how often have you been able to control irritations in your life?</p></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss9" value="0" required></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss9" value="1"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss9" value="2"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss9" value="3"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss9" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem"><p class="smaller">In the last month, how often have you felt that you were on top of things?</p></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss10" value="0" required></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss10" value="1"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss10" value="2"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss10" value="3"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss10" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem"><p class="smaller">In the last month, how often have you been angered because of things that happened that were outside of your control?</p></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss11" value="0" required></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss11" value="1"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss11" value="2"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss11" value="3"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss11" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem"><p class="smaller">In the last month, how often have you found yourself thinking about things that you have to accomplish?</p></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss12" value="0" required></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss12" value="1"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss12" value="2"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss12" value="3"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss12" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem"><p class="smaller">In the last month, how often have you been able to control the way you spend your time?</p></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss13" value="0" required></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss13" value="1"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss13" value="2"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss13" value="3"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss13" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem"><p class="smaller">In the last month, how often have you felt difficulties were piling up so high that you could not overcome them?</p></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss14" value="0" required></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss14" value="1"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss14" value="2"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss14" value="3"></td>
+					<td class="qChoice qsmall"><input type="radio" name="pss14" value="4"></td>
+				</tr>
+
+			</table>	
+			<p class="center"><input type="submit" value="continue"></p>
+		</form>
+	</div>
+
+	<div class="boxcontent" id="DISTRESS">
+		<h1>Part II</h1>
+		<p>During the last 30 days, how much have you been distressed by<p>
+
+		
+		<form name="distressForm" autocomplete="off" id="distressForm1">
+			<table border="0" cellspacing="1" cellpadding="1" class="qTable2" autocomplete="off">
+				<tr>
+					<td class="qItem"> </td>
+					<td class="qsmall center">Not at all<br>0</td>
+					<td class="qsmall center">A little bit<br>1</td>
+					<td class="qsmall center">Moderately<br>2</td>
+					<td class="qsmall center">Quite a bit<br>3</td>
+					<td class="qsmall center">Extremely<br>4</td>
+				</tr>
+				<tr>
+					<td class="qItem">Feeling blue.</td>
+					<td class="qsmall center"><input type="radio" name="distress1" value="0" required></td>
+					<td class="qsmall center"><input type="radio" name="distress1" value="1"></td>
+					<td class="qsmall center"><input type="radio" name="distress1" value="2"></td>
+					<td class="qsmall center"><input type="radio" name="distress1" value="3"></td>
+					<td class="qsmall center"><input type="radio" name="distress1" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Feeling alone Even when you are with people.</td>
+					<td class="qsmall center"><input type="radio" name="distress2" value="0" required></td>
+					<td class="qsmall center"><input type="radio" name="distress2" value="1"></td>
+					<td class="qsmall center"><input type="radio" name="distress2" value="2"></td>
+					<td class="qsmall center"><input type="radio" name="distress2" value="3"></td>
+					<td class="qsmall center"><input type="radio" name="distress2" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Feeling fearfull.</td>
+					<td class="qsmall center"><input type="radio" name="distress3" value="0" required></td>
+					<td class="qsmall center"><input type="radio" name="distress3" value="1"></td>
+					<td class="qsmall center"><input type="radio" name="distress3" value="2"></td>
+					<td class="qsmall center"><input type="radio" name="distress3" value="3"></td>
+					<td class="qsmall center"><input type="radio" name="distress3" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Feeling hopeless about the future.</td>
+					<td class="qsmall center"><input type="radio" name="distress4" value="0" required></td>
+					<td class="qsmall center"><input type="radio" name="distress4" value="1"></td>
+					<td class="qsmall center"><input type="radio" name="distress4" value="2"></td>
+					<td class="qsmall center"><input type="radio" name="distress4" value="3"></td>
+					<td class="qsmall center"><input type="radio" name="distress4" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">Feeling tense or keyed-up.</td>
+					<td class="qsmall center"><input type="radio" name="distress5" value="0" required></td>
+					<td class="qsmall center"><input type="radio" name="distress5" value="1"></td>
+					<td class="qsmall center"><input type="radio" name="distress5" value="2"></td>
+					<td class="qsmall center"><input type="radio" name="distress5" value="3"></td>
+					<td class="qsmall center"><input type="radio" name="distress5" value="4"></td>
+				</tr>
+				<tr>
+					<td class="qItem">The idea that something is wrong with your mind.</td>
+					<td class="qsmall center"><input type="radio" name="distress6" value="0" required></td>
+					<td class="qsmall center"><input type="radio" name="distress6" value="1"></td>
+					<td class="qsmall center"><input type="radio" name="distress6" value="2"></td>
+					<td class="qsmall center"><input type="radio" name="distress6" value="3"></td>
+					<td class="qsmall center"><input type="radio" name="distress6" value="4"></td>
+				</tr>
+			</table>
+			<p>&nbsp;</p>
+			<p class="center"><input type="submit" value="continue"></p>
+		</form>
+	</div>
+	<div class="boxcontent" id="HATS">
+		<h1>Part II</h1>
+		
+		<p>We now ask you to imagine you have been paired up with another participant in the room. You will be asked to choose an object out of three objects displayed. The object you choose will not be available to the other participant. Please choose.
+		</p>
+		
+		<form name="hatsForm" autocomplete="off" id="hatsForm">
+			<div class="center">
+				<img src="hats.png" alt="hats"><br>
+				<table class="qTable" cellspacing="1" cellpadding="1">
+					<tr>
+						<td class="center"><input type="radio" name="hats" value="1" required></td>
+						<td class="center"><input type="radio" name="hats" value="2"></td>
+						<td class="center"><input type="radio" name="hats" value="3"></td>
+					</tr>
+				</table>
+			</div>
+			<p>&nbsp;</p>
+			<p class="center"><input type="submit" value="continue"></p>
+		</form>
+	</div>		
+	<div class="boxcontent" id="dictator">
+		<h1>Part II</h1>
+		
+		<p>Now imagine you would get 5 euros from the experimenters and you can decide to send some part of it to another participant in the room.You can give 0 cents, 0.50 cents, 1 euro, 1.50 euros, 2 euros, 2.50 euros, 3 euros, 3.50 euros, 4 euros, 4.50 euros or 5 euros.</p>
+		<p><em>Please use a dot "." as the decimal point.</em></p>
+		
+		<form name="dictatorForm" autocomplete="off" id="dictatorForm">
+			<p>How much would you send? <br>
+			<input type="number" min="0" max="5" step="0.5" name="dictator"  required></p>
+			<p>&nbsp;</p>
+			<p class="center"><input type="submit" value="continue"></p>
+		</form>
+	</div>
+	<div class="boxcontent" id="SVO1">
+		<h1>Part II</h1>
+		
+		<p>In this task we ask you to imagine that you have been randomly paired with another person, whom we will refer to simply as the "Other." This other person is someone you do not know and that you will not knowingly meet in the future. Both you and the "Other" person will be making choices by choosing either the letter A, B, or C. Your own choices will produce points for both yourself and the "Other" person. Likewise, the other's choice will produce points for him/her and for you. Every point has value: the more points you receive, the better for you, and the more points the "Other" receives, the better for him/her.</p>
+
+		<p>Here's an example of how this task works:</p>
+		<table class="svoTable" border="0" cellspacing="0" cellpadding="0">
+			<tr>
+				<td></td>
+				<td class="center">A</td>
+				<td class="center">B</td>
+				<td class="center">C</td>
+			</tr>
+			<tr>
+				<td>You get</td>
+				<td class="center">500</td>
+				<td class="center">500</td>
+				<td class="center">550</td>
+			</tr>
+			<tr>
+				<td>Other gets</td>
+				<td class="center">100</td>
+				<td class="center">500</td>
+				<td class="center">300</td>
+			</tr>
+		</table>
+
+		<p>In this example, if you choose A you would receive 500 points and the other would receive 100 points; if you chose B, you would receive 500 points and the other 500; and if you chose C, you would receive 550 points and the other 300. So, you see that your choice influences both the number of points you receive and the number of points the other receives. Before you begin making choices, please keep in mind that there are no right or wrong answers -- choose the option that you, for whatever reason, prefer most. Also, remember that the points have value: the more of them you accumulate the better for you. Likewise, from the "other's" point of view, the more points s/he accumulates, the better for him/her.
+		</p>
+		
+		<p class="center"><input type="button" value="continue" name="svoButton" onclick="svo1();"></p>
+	</div>
+	<div class="boxcontent" id="SVO2">
+		<h1>Part II</h1>
+		
+		<p>For each of the nine choice situations, mark A, B, or C, depending on which column you prefer most:</p>
+		<form name="svoForm" autocomplete="off" id="svoForm">
+			<table width="100%" cellspacing="0" cellpadding="10" class="containerTable">
+				<tr>
+					<td class="lefttab center">
+						<table class="svoTable" border="0" cellspacing="5" cellpadding="0">
+							<tr>
+								<td><b>Choice 1</b></td>
+								<td class="center">A</td>
+								<td class="center">B</td>
+								<td class="center">C</td>
+							</tr>
+							<tr>
+								<td>You get</td>
+								<td class="center">480</td>
+								<td class="center">540</td>
+								<td class="center">480</td>
+							</tr>
+							<tr>
+								<td>Other gets</td>
+								<td class="center">80</td>
+								<td class="center">280</td>
+								<td class="center">480</td>
+							</tr>
+							<tr>
+								<td></td>
+								<td class="center"><input type="radio" name="svo1" value="1" required></td>
+								<td class="center"><input type="radio" name="svo1" value="2"></td>
+								<td class="center"><input type="radio" name="svo1" value="3"></td>
+							</tr>
+						</table>
+					</td>
+					<td class="righttab center" >
+						<table class="svoTable" border="0" cellspacing="5" cellpadding="0">
+							<tr>
+								<td><b>Choice 2</b></td>
+								<td class="center">A</td>
+								<td class="center">B</td>
+								<td class="center">C</td>
+							</tr>
+							<tr>
+								<td>You get</td>
+								<td class="center">560</td>
+								<td class="center">500</td>
+								<td class="center">500</td>
+							</tr>
+							<tr>
+								<td>Other gets</td>
+								<td class="center">300</td>
+								<td class="center">500</td>
+								<td class="center">100</td>
+							</tr>
+							<tr>
+								<td></td>
+								<td class="center"><input type="radio" name="svo2" value="1" required></td>
+								<td class="center"><input type="radio" name="svo2" value="2"></td>
+								<td class="center"><input type="radio" name="svo2" value="3"></td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td class="lefttab center">
+						<table class="svoTable" border="0" cellspacing="5" cellpadding="0">
+							<tr>
+								<td><b>Choice 3</b></td>
+								<td class="center">A</td>
+								<td class="center">B</td>
+								<td class="center">C</td>
+							</tr>
+							<tr>
+								<td>You get</td>
+								<td class="center">520</td>
+								<td class="center">520</td>
+								<td class="center">580</td>
+							</tr>
+							<tr>
+								<td>Other gets</td>
+								<td class="center">520</td>
+								<td class="center">120</td>
+								<td class="center">320</td>
+							</tr>
+							<tr>
+								<td></td>
+								<td class="center"><input type="radio" name="svo3" value="1" required></td>
+								<td class="center"><input type="radio" name="svo3" value="2"></td>
+								<td class="center"><input type="radio" name="svo3" value="3"></td>
+							</tr>
+						</table>
+					</td>
+					<td class="righttab center" >
+						<table class="svoTable" border="0" cellspacing="5" cellpadding="0">
+							<tr>
+								<td><b>Choice 4</b></td>
+								<td class="center">A</td>
+								<td class="center">B</td>
+								<td class="center">C</td>
+							</tr>
+							<tr>
+								<td>You get</td>
+								<td class="center">500</td>
+								<td class="center">560</td>
+								<td class="center">490</td>
+							</tr>
+							<tr>
+								<td>Other gets</td>
+								<td class="center">100</td>
+								<td class="center">300</td>
+								<td class="center">490</td>
+							</tr>
+							<tr>
+								<td></td>
+								<td class="center"><input type="radio" name="svo4" value="1" required></td>
+								<td class="center"><input type="radio" name="svo4" value="2"></td>
+								<td class="center"><input type="radio" name="svo4" value="3"></td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td class="lefttab center">
+						<table class="svoTable" border="0" cellspacing="5" cellpadding="0">
+							<tr>
+								<td><b>Choice 5</b></td>
+								<td class="center">A</td>
+								<td class="center">B</td>
+								<td class="center">C</td>
+							</tr>
+							<tr>
+								<td>You get</td>
+								<td class="center">560</td>
+								<td class="center">500</td>
+								<td class="center">490</td>
+							</tr>
+							<tr>
+								<td>Other gets</td>
+								<td class="center">300</td>
+								<td class="center">500</td>
+								<td class="center">90</td>
+							</tr>
+							<tr>
+								<td></td>
+								<td class="center"><input type="radio" name="svo5" value="1" required></td>
+								<td class="center"><input type="radio" name="svo5" value="2"></td>
+								<td class="center"><input type="radio" name="svo5" value="3"></td>
+							</tr>
+						</table>
+					</td>
+					<td class="righttab center" >
+						<table class="svoTable" border="0" cellspacing="5" cellpadding="0">
+							<tr>
+								<td><b>Choice 6</b></td>
+								<td class="center">A</td>
+								<td class="center">B</td>
+								<td class="center">C</td>
+							</tr>
+							<tr>
+								<td>You get</td>
+								<td class="center">500</td>
+								<td class="center">500</td>
+								<td class="center">570</td>
+							</tr>
+							<tr>
+								<td>Other gets</td>
+								<td class="center">500</td>
+								<td class="center">100</td>
+								<td class="center">300</td>
+							</tr>
+							<tr>
+								<td></td>
+								<td class="center"><input type="radio" name="svo6" value="1" required></td>
+								<td class="center"><input type="radio" name="svo6" value="2"></td>
+								<td class="center"><input type="radio" name="svo6" value="3"></td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td class="lefttab center">
+						<table class="svoTable" border="0" cellspacing="5" cellpadding="0">
+							<tr>
+								<td><b>Choice 7</b></td>
+								<td class="center">A</td>
+								<td class="center">B</td>
+								<td class="center">C</td>
+							</tr>
+							<tr>
+								<td>You get</td>
+								<td class="center">510</td>
+								<td class="center">560</td>
+								<td class="center">510</td>
+							</tr>
+							<tr>
+								<td>Other gets</td>
+								<td class="center">510</td>
+								<td class="center">300</td>
+								<td class="center">110</td>
+							</tr>
+							<tr>
+								<td></td>
+								<td class="center"><input type="radio" name="svo7" value="1" required></td>
+								<td class="center"><input type="radio" name="svo7" value="2"></td>
+								<td class="center"><input type="radio" name="svo7" value="3"></td>
+							</tr>
+						</table>
+					</td>
+					<td class="righttab center" >
+						<table class="svoTable" border="0" cellspacing="5" cellpadding="0">
+							<tr>
+								<td><b>Choice 8</b></td>
+								<td class="center">A</td>
+								<td class="center">B</td>
+								<td class="center">C</td>
+							</tr>
+							<tr>
+								<td>You get</td>
+								<td class="center">550</td>
+								<td class="center">500</td>
+								<td class="center">500</td>
+							</tr>
+							<tr>
+								<td>Other gets</td>
+								<td class="center">300</td>
+								<td class="center">100</td>
+								<td class="center">500</td>
+							</tr>
+							<tr>
+								<td></td>
+								<td class="center"><input type="radio" name="svo8" value="1" required></td>
+								<td class="center"><input type="radio" name="svo8" value="2"></td>
+								<td class="center"><input type="radio" name="svo8" value="3"></td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td class="center" colspan="2">
+						<table class="svoTable" border="0" cellspacing="5" cellpadding="0">
+							<tr>
+								<td><b>Choice 9</b></td>
+								<td class="center">A</td>
+								<td class="center">B</td>
+								<td class="center">C</td>
+							</tr>
+							<tr>
+								<td>You get</td>
+								<td class="center">480</td>
+								<td class="center">490</td>
+								<td class="center">540</td>
+							</tr>
+							<tr>
+								<td>Other gets</td>
+								<td class="center">100</td>
+								<td class="center">490</td>
+								<td class="center">300</td>
+							</tr>
+							<tr>
+								<td></td>
+								<td class="center"><input type="radio" name="svo9" value="1" required></td>
+								<td class="center"><input type="radio" name="svo9" value="2"></td>
+								<td class="center"><input type="radio" name="svo9" value="3"></td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+			</table>
+			<p class="center"><input type="submit" value="continue"></p>
+		</form>
+	</div>
+	<div class="boxcontent" id="ENDE">
+		<h1>The End</h1>
+		<p>Thank you very much for participating in this study. You may now go to the front of the room and collect your payment.</p>
+	</div>
+	<div class="boxcontent" id="PROBABILITIES">
+		<h1>Part II</h1>
+		<p>Now, please imagine a fair coin which has been thrown nine times so far.<br>Which of the two results below do you consider more likely? (H for Heads, T for Tails)</p>
+		
+		<form name="probForm" autocomplete="off" id="probForm">
+			<p><input type="radio" name="prob" value="1"> <span class="fixedFont">H H H T T T T T T</span></p>
+			<p><input type="radio" name="prob" value="2"> <span class="fixedFont">H T H T H T T H H</span></p>
+			<p><input type="radio" name="prob" value="0"> equally likely</p>
+			<p class="center"><input type="submit" value="continue"></p>
+		</form>
+	</div>
+</div>
+</body>
+</html>

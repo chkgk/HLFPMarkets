@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Control</title>
+
+<script src="jquery-2.1.0.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script type="text/javascript">
+
+socket = io.connect();
+
+$( document ).ready( function () {
+	socket.emit('register', { 'type': 'monitor'});
+	
+	 socket.on('register', function(data) {
+      if (data.response == 'accepted') {
+        //$("#exp_title").html("registered: "+data.sessionid);
+		console.log("registered: "+data.sessionid);
+		console.log(data.scode);
+		if (data.scode != 'NULL') {
+			$("input[name=code]").val(data.scode);
+			$("input[name=code]").attr("disabled", "disabled");
+			$("input[name=setbut]").attr("disabled", "disabled");
+			$('#startbutton').show();
+		}
+      } else {
+        //$("#exp_title").html("rejected");
+		console.log("rejected");
+      }
+ });
+ 	
+	socket.on('list', function (data) {
+		$('#clients').html("");
+		data.sort(function(a,b){
+			return a.seat-b.seat;
+		});
+		for (var i = 0; i < data.length; i++) {
+			$('#clients').append("<li>"+data[i].seat+"</li>");	
+		}
+	});
+
+	socket.on('sessionset', function(data) {
+		$('#startbutton').show();
+	});
+});
+
+function go() {
+	socket.emit('go');
+}
+
+function setCode() {
+	$("input[name=setbut]").attr("disabled", "disabled");
+	$("input[name=code]").attr("disabled", "disabled");
+	socket.emit('setsession', { 'scode' : $("input[name=code]").val() });
+}
+
+
+</script>
+</head>
+
+<body>
+<p>Sessionname:
+<input type="text" name="code" id="code"><input type="button" name="setbut" value="set" onClick="setCode();"></p>
+
+<p style="display: none" id="startbutton"><a href="javascript:go();">START EXPERIMENT</a></p>
+
+<p>Connected Clients</p>
+<ul id="clients">
+
+</ul>
+</body>
+</html>

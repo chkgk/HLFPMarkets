@@ -1,0 +1,47 @@
+<html>
+<head>
+	<meta charset="UTF-8">
+<title>Payoff Screen</title>
+<script src="jquery-2.1.0.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script type="text/javascript">
+
+socket = io.connect();
+
+$( document ).ready( function() {
+	socket.emit('register', {'type': 'monitor'} );
+
+	 socket.on('register', function(data) {
+	      if (data.response == 'accepted') {
+	        //$("#exp_title").html("registered: "+data.sessionid);
+			console.log("registered: "+data.sessionid);
+			console.log(data.scode);
+	      } else {
+	        //$("#exp_title").html("rejected");
+			console.log("rejected");
+	      }
+	 });
+
+	 socket.on('finished', function(data) {
+	 	$('#paymenttable tr').remove();
+	 	console.log(data);
+	 	data.finished.sort(function(a,b){
+			return a.seat-b.seat;
+		});
+	 	for (x in data.finished) {
+	 		var item = "<tr><td>"+data.finished[x].seat+"</td><td>"+data.finished[x].payment+"€</td><td style='width: 33%; font-size: 14px'>"+data.finished[x].starttime+"</td></tr>";
+	 		$('#paymenttable').append(item);
+	 	}
+	 });
+
+});
+
+</script>
+</head>
+<body>
+	<h2>Payment File</h2>
+<table border="0" width="80%" id="paymenttable" style="text-align: center; font-family: Arial; font-size: 24px;">
+
+</table>
+</body>
+</html>

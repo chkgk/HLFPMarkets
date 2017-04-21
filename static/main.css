@@ -1,0 +1,166 @@
+body {
+	font-size: 16px;
+	text-align: justify;
+	font-family: Arial, Verdana, sans-serif;	
+}
+
+h1 {
+	font-weight: bold;
+	font-size: 18px;
+	margin-top: 0px;
+}
+
+ul.history {
+	font-size: 14px;
+	list-style-type: none;
+	padding: 0px;
+	margin: 0px;
+}
+
+.centerbox {
+	width: 900px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.boxcontent {
+	display: none;
+	margin-top: 20px;
+}
+
+.onecol {
+	margin-top: 10px;
+	width: 815px;
+}
+
+.twocol {
+	display: inline-block;
+}
+
+.fleft {
+	width: 450px;
+	height: 400px;	
+	float: left;
+}
+
+.fright {
+	width: 450px;
+	height: 400px;
+	overflow: scroll;
+}
+
+.choiceRisk {
+	display: none;
+}
+
+.hidden {
+	display: none;
+}
+
+.risktable {
+	display: inline-block;
+	width: 600px;
+}
+
+.risktable td {
+	text-align: center;
+}
+
+.qTable {
+	width: 900px;
+	line-height: 20px;
+}
+
+.qTable2 {
+	width: 900px;
+	line-height: 20px;
+}
+
+.qItem {
+	text-align: left;
+}
+
+.qChoice {
+	text-align: center;
+	width: 120px;
+}
+
+.center {
+	text-align: center;
+}
+
+.smaller {
+	font-size: 14px;
+}
+
+.shortNum input {
+	width: 40px;
+	border-bottom: 1px dashed #000;
+	font-size: 14px;
+	border-top: 0px;
+	border-left: 0px;
+	border-right: 0px;
+}
+
+.shortNum p {
+	margin-top: 4px;
+	margin-bottom: 4px;
+	/*line-height: 10px;*/
+}
+
+.qsmall {
+	font-size: 14px;
+	width: 80px;
+}
+
+.qItem p {
+	margin-left: 1em;
+	text-indent: -1em;
+	margin-bottom: 2px;
+	margin-top: 2px;
+}
+
+.qTable2 tr {
+	height: 45px;
+}
+
+.svoTable {
+	display: inline-table;
+	width: 400px;
+	border: 0px;
+}
+
+.leftTab {
+	border-bottom: 1px solid #000;
+	border-right: 1px solid #000;
+}
+
+.rightTab {
+	border-bottom: 1px solid #000;
+	border-right: 0px;
+}
+
+.fixedFont {
+	font-family: Courier;
+}
+
+#status {
+	margin-top: 200px;
+	text-align: center;
+}
+
+#rightcontent {
+	overflow: auto;
+}
+
+#risk1 {
+	display: inline;
+}
+
+#riskQuestion {
+	text-align: center;
+}
+
+#dForm p {
+	margin-bottom: 20px;
+}
